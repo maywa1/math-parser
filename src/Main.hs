@@ -1,4 +1,5 @@
 import Data.Char (isSpace, isDigit)
+import Text.Read (readMaybe)
 
 data Operator
     = Add
@@ -14,7 +15,7 @@ data Expr
     deriving Show
 
 data CalcError
-    = InvalidOperator Char
+    = InvalidOperator
     | MissingNumber
     | DivisionByZero
     deriving Show
@@ -30,19 +31,32 @@ symbolToOperator '-' = Right Subtract
 symbolToOperator '*' = Right Multiply
 symbolToOperator '/' = Right Divide
 symbolToOperator '^' = Right Exponentiation
-symbolToOperator c   = Left (InvalidOperator c)
+symbolToOperator c   = Left InvalidOperator
 
+splitLowestPriorityOperator :: String -> Either CalcError (Operator, String, String)
+splitLowestPriorityOperator expression =
+    findOperator ["+-", "*/", "^"]
+  where
+    findOperator [] = Left InvalidOperator
+
+    findOperator (operators : rest) =
+        let (rightRev, remaining) =
+                span (`notElem` operators) (reverse expression)
+        in case remaining of
+            [] -> findOperator rest
+            op : leftRev -> do
+                operator <- symbolToOperator op
+                Right (operator, reverse leftRev, reverse rightRev)
 
 parse :: String -> Either CalcError Expr
 parse expression =
-    let (number, rest) = span isDigit expression
-    in case (number, rest) of
-        ("", _) -> Left MissingNumber
-        (digits, []) -> Right (Number (read digits))
-        (digits, operator : remaining) -> do
-            op <- symbolToOperator operator
-            right <- parse remaining
-            pure (BinOp op (Number (read digits)) right)
+    case readMaybe expression of
+        Just number -> Right (Number number)
+        Nothing -> do
+            (op, left, right) <- splitLowestPriorityOperator expression
+            leftExpr <- parse left
+            rightExpr <- parse right
+            pure (BinOp op leftExpr rightExpr)
 
 applyOperator :: Operator -> Int -> Int -> Either CalcError Int
 applyOperator Add            x y = Right (x + y)
@@ -68,8 +82,8 @@ eval expression = do
     evalExpr expr
 
 showError :: CalcError -> String
-showError (InvalidOperator c) =
-    "Character '" ++ [c] ++ "' is not a valid operator"
+showError InvalidOperator =
+    "Invalid operator in expression!"
 
 showError MissingNumber =
     "Expected a number"
