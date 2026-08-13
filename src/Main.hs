@@ -5,6 +5,7 @@ data Operator
     | Subtract
     | Multiply
     | Divide
+    | Exponentiation
     deriving Show
 
 data Expr
@@ -28,6 +29,7 @@ symbolToOperator '+' = Right Add
 symbolToOperator '-' = Right Subtract
 symbolToOperator '*' = Right Multiply
 symbolToOperator '/' = Right Divide
+symbolToOperator '^' = Right Exponentiation
 symbolToOperator c   = Left (InvalidOperator c)
 
 
@@ -43,11 +45,12 @@ parse expression =
             pure (BinOp op (Number (read digits)) right)
 
 applyOperator :: Operator -> Int -> Int -> Either CalcError Int
-applyOperator Add      x y = Right (x + y)
-applyOperator Subtract x y = Right (x - y)
-applyOperator Multiply x y = Right (x * y)
-applyOperator Divide   _ 0 = Left DivisionByZero
-applyOperator Divide   x y = Right (x `div` y)
+applyOperator Add            x y = Right (x + y)
+applyOperator Subtract       x y = Right (x - y)
+applyOperator Multiply       x y = Right (x * y)
+applyOperator Exponentiation x y = Right (x ^ y)
+applyOperator Divide         _ 0 = Left DivisionByZero
+applyOperator Divide         x y = Right (x `div` y)
 
 
 evalExpr :: Expr -> Either CalcError Int
