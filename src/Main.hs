@@ -46,7 +46,7 @@ applyOperator :: Operator -> Int -> Int -> Either CalcError Int
 applyOperator Add      x y = Right (x + y)
 applyOperator Subtract x y = Right (x - y)
 applyOperator Multiply x y = Right (x * y)
-applyOperator Divide   _  0 = Left DivisionByZero
+applyOperator Divide   _ 0 = Left DivisionByZero
 applyOperator Divide   x y = Right (x `div` y)
 
 
