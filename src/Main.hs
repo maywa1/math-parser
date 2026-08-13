@@ -10,7 +10,7 @@ data Operator
     deriving Show
 
 data Expr
-    = Number Int
+    = Number Double
     | BinOp Operator Expr Expr
     deriving Show
 
@@ -20,10 +20,8 @@ data CalcError
     | DivisionByZero
     deriving Show
 
-
 removeWhitespace :: String -> String
 removeWhitespace = filter (not . isSpace)
-
 
 symbolToOperator :: Char -> Either CalcError Operator
 symbolToOperator '+' = Right Add
@@ -58,16 +56,16 @@ parse expression =
             rightExpr <- parse right
             pure (BinOp op leftExpr rightExpr)
 
-applyOperator :: Operator -> Int -> Int -> Either CalcError Int
+applyOperator :: Operator -> Double -> Double -> Either CalcError Double
 applyOperator Add            x y = Right (x + y)
 applyOperator Subtract       x y = Right (x - y)
 applyOperator Multiply       x y = Right (x * y)
-applyOperator Exponentiation x y = Right (x ^ y)
+applyOperator Exponentiation x y = Right (x ** y)
 applyOperator Divide         _ 0 = Left DivisionByZero
-applyOperator Divide         x y = Right (x `div` y)
+applyOperator Divide         x y = Right (x / y)
 
 
-evalExpr :: Expr -> Either CalcError Int
+evalExpr :: Expr -> Either CalcError Double
 evalExpr (Number n) = Right n
 
 evalExpr (BinOp operator left right) = do
@@ -76,7 +74,7 @@ evalExpr (BinOp operator left right) = do
     applyOperator operator x y
 
 
-eval :: String -> Either CalcError Int
+eval :: String -> Either CalcError Double
 eval expression = do
     expr <- parse (removeWhitespace expression)
     evalExpr expr
