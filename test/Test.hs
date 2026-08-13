@@ -9,7 +9,7 @@ testEval tests =
     runTests total passed [] = do
         putStrLn "==============================="
         putStrLn $ show passed ++ " of " ++ show total ++ " tests passed"
-        putStrLn "=============================== \n"
+        putStrLn "===============================\n"
         if passed == total
             then exitSuccess
             else exitFailure
@@ -37,4 +37,17 @@ main = do
         , ("10 / 2", Right 5.0)
         , ("10 / 0", Left DivisionByZero)
         , ("2^2^3", Right 256)
+
+        -- unary minus
+        , ("-5", Right (-5.0))
+        , ("-5 + 3", Right (-2.0))
+        , ("3 + -5", Right (-2.0))
+        , ("3 - -5", Right 8.0)
+        , ("3 * -5", Right (-15.0))
+        , ("-5 * -5", Right 25.0)
+        , ("3 / -5", Right (-0.6))
+        , ("-2^2", Right (-4.0))       -- unary minus has lower precedence than ^
+        , ("(-2)^2", Right 4.0)
+        , ("-3 - -3", Right 0.0)
+        , ("--5", Right 5.0)
         ]
