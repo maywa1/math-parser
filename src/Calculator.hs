@@ -39,6 +39,13 @@ splitLowestPriorityOperator expression =
   where
     findOperator [] = Left InvalidOperator
 
+    findOperator ("^" : rest) =
+        let (left, remaining) =
+                span (`notElem` "^") (expression)
+        in case remaining of
+            [] -> findOperator rest
+            _ : right -> Right (Exponentiation, left, right)
+
     findOperator (operators : rest) =
         let (rightRev, remaining) =
                 span (`notElem` operators) (reverse expression)
