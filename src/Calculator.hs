@@ -2,7 +2,9 @@ module Calculator where
 
 import Data.Char (isSpace, isDigit)
 import Text.Read (readMaybe)
+import Data.List (isInfixOf)
 
+data Operator
 data Operator
     = Add
     | Subtract
@@ -22,8 +24,42 @@ data CalcError
     | DivisionByZero
     deriving (Show, Eq)
 
-removeWhitespace :: String -> String
-removeWhitespace = filter (not . isSpace)
+cleanExpresssion :: String -> String
+cleanExpresssion expression =
+    removePlusAtStart $ simplifySigns $ cleanWhiteSpace expression
+    where
+        removePlusAtStart :: String -> String
+        removePlusAtStart str =
+            if head str == '+' then
+                tail str
+            else
+                str
+
+
+        cleanWhiteSpace :: String -> String
+        cleanWhiteSpace = filter (not . isSpace)
+
+        simplifySigns :: String -> String
+        simplifySigns expression
+            | "--"  `isInfixOf`  expression  = simplifySigns $ replace "--" "+" expression
+            | "+-"  `isInfixOf`  expression  = simplifySigns $ replace "+-" "-" expression
+            | "-+"  `isInfixOf`  expression  = simplifySigns $ replace "-+" "-" expression
+            | "++"  `isInfixOf`  expression  = simplifySigns $ replace "++" "+" expression
+            | otherwise = expression
+
+        -- I wanted to not use any package so I will stick to strings and have my own fuction
+        replace :: Eq a => [a] -> [a] -> [a] -> [a]
+        replace old new = go
+          where
+            go [] = []
+            go xs
+              | old `isPrefixOf` xs = new ++ go (drop (length old) xs)
+              | otherwise           = head xs : go (tail xs)
+
+            isPrefixOf [] _ = True
+            isPrefixOf _ [] = False
+            isPrefixOf (x:xs) (y:ys) = x == y && isPrefixOf xs ys
+
 
 symbolToOperator :: Char -> Either CalcError Operator
 symbolToOperator '+' = Right Add
@@ -37,23 +73,37 @@ splitLowestPriorityOperator :: String -> Either CalcError (Operator, String, Str
 splitLowestPriorityOperator expression =
     findOperator ["+-", "*/", "^"]
   where
+    splitOnElemInString :: String -> String -> (String, String)
+    splitOnElemInString string elem =
+        span (`notElem` elem) string
+
     findOperator [] = Left InvalidOperator
 
     findOperator ("^" : rest) =
-        let (left, remaining) =
-                span (`notElem` "^") (expression)
+        let (left, remaining) = splitOnElemInString expression "^"
         in case remaining of
             [] -> findOperator rest
             _ : right -> Right (Exponentiation, left, right)
 
     findOperator (operators : rest) =
-        let (rightRev, remaining) =
-                span (`notElem` operators) (reverse expression)
+        let (rightRev, remaining) = splitOnElemInString (reverse expression) operators
         in case remaining of
             [] -> findOperator rest
-            op : leftRev -> do
-                operator <- symbolToOperator op
-                Right (operator, reverse leftRev, reverse rightRev)
+            op : leftRev ->
+                if leftRev == "" then
+                    findOperator rest
+                else if op == '-' && head leftRev == '/'
+                    || op == '-' && head leftRev == '*' then
+                    let (remainingRightRev, remainingLeftRev) = splitOnElemInString leftRev operators
+                    in if remainingLeftRev == "" then
+                        findOperator rest
+                    else do
+                        operator <- symbolToOperator op
+                        pure (operator, reverse remainingLeftRev, (reverse (remainingRightRev ++ rightRev)))
+
+                else do
+                    operator <- symbolToOperator op
+                    pure (operator, reverse leftRev, reverse rightRev)
 
 parse :: String -> Either CalcError Expr
 parse expression =
@@ -85,7 +135,7 @@ evalExpr (BinOp operator left right) = do
 
 eval :: String -> Either CalcError Double
 eval expression = do
-    expr <- parse (removeWhitespace expression)
+    expr <- parse (cleanExpresssion expression)
     evalExpr expr
 
 showError :: CalcError -> String
