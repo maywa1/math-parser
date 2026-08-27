@@ -4,7 +4,17 @@ import Data.Char (isSpace, isDigit)
 import Text.Read (readMaybe)
 import Data.List (isInfixOf)
 
-data Operator
+data Token
+    = TPlus
+    | TMinus
+    | TMultiply
+    | TDivide
+    | TExponentiate
+    | TNumber Double
+    | TOpenParenthesis
+    | TCloseParenthesis
+    deriving (Show, Eq)
+
 data Operator
     = Add
     | Subtract
@@ -15,64 +25,61 @@ data Operator
 
 data Expr
     = Number Double
+    | UnaryOp UnaryOperator Expr
     | BinOp Operator Expr Expr
     deriving (Show, Eq)
 
+data UnaryOperator
+    = Positive
+    | Negative
+    deriving (Show, Eq)
+
 data CalcError
-    = InvalidOperator
+    = InvalidOperator Char
+    | InvalidNumber String
     | MissingNumber
     | DivisionByZero
     deriving (Show, Eq)
 
-cleanExpresssion :: String -> String
-cleanExpresssion expression =
-    removePlusAtStart $ simplifySigns $ cleanWhiteSpace expression
-    where
-        removePlusAtStart :: String -> String
-        removePlusAtStart str =
-            if head str == '+' then
-                tail str
-            else
-                str
+tokenize :: String -> Either CalcError [Token]
+tokenize = go
+  where
+    go :: String -> Either CalcError [Token]
+    go input =
+      case input of
+        c : rest
+          | isSpace c -> go rest
+        _ ->
+          let (whole, rest) = span isDigit input
+          in case rest of
+               '.' : decimalRest ->
+                 let (fraction, remaining) = span isDigit decimalRest
+                     number = whole ++ "." ++ fraction
+                 in if null whole || null fraction
+                      then Left (InvalidNumber number)
+                      else prepend (TNumber (read number)) remaining
 
+               _ | not (null whole) ->
+                   prepend (TNumber (read whole)) rest
 
-        cleanWhiteSpace :: String -> String
-        cleanWhiteSpace = filter (not . isSpace)
+               '(' : remaining -> prepend TOpenParenthesis remaining
+               ')' : remaining -> prepend TCloseParenthesis remaining
+               '+' : remaining -> prepend TPlus remaining
+               '/' : remaining -> prepend TDivide remaining
+               '*' : remaining -> prepend TMultiply remaining
+               '-' : remaining -> prepend TMinus remaining
+               symbol : _       -> Left (InvalidOperator symbol)
+               []               -> Right []
 
-        simplifySigns :: String -> String
-        simplifySigns expression
-            | "--"  `isInfixOf`  expression  = simplifySigns $ replace "--" "+" expression
-            | "+-"  `isInfixOf`  expression  = simplifySigns $ replace "+-" "-" expression
-            | "-+"  `isInfixOf`  expression  = simplifySigns $ replace "-+" "-" expression
-            | "++"  `isInfixOf`  expression  = simplifySigns $ replace "++" "+" expression
-            | otherwise = expression
+    prepend :: Token -> String -> Either CalcError [Token]
+    prepend token rest =
+      (token :) <$> go rest
 
-        -- I wanted to not use any package so I will stick to strings and have my own fuction
-        replace :: Eq a => [a] -> [a] -> [a] -> [a]
-        replace old new = go
-          where
-            go [] = []
-            go xs
-              | old `isPrefixOf` xs = new ++ go (drop (length old) xs)
-              | otherwise           = head xs : go (tail xs)
-
-            isPrefixOf [] _ = True
-            isPrefixOf _ [] = False
-            isPrefixOf (x:xs) (y:ys) = x == y && isPrefixOf xs ys
-
-
-symbolToOperator :: Char -> Either CalcError Operator
-symbolToOperator '+' = Right Add
-symbolToOperator '-' = Right Subtract
-symbolToOperator '*' = Right Multiply
-symbolToOperator '/' = Right Divide
-symbolToOperator '^' = Right Exponentiation
-symbolToOperator c   = Left InvalidOperator
 
 splitLowestPriorityOperator :: String -> Either CalcError (Operator, String, String)
 splitLowestPriorityOperator expression =
     findOperator ["+-", "*/", "^"]
-  where
+    where
     splitOnElemInString :: String -> String -> (String, String)
     splitOnElemInString string elem =
         span (`notElem` elem) string
@@ -135,12 +142,15 @@ evalExpr (BinOp operator left right) = do
 
 eval :: String -> Either CalcError Double
 eval expression = do
-    expr <- parse (cleanExpresssion expression)
+    expr <- parse (tokenize expression)
     evalExpr expr
 
 showError :: CalcError -> String
-showError InvalidOperator =
-    "Invalid operator in expression!"
+showError (InvalidOperator symbol) =
+    [symbol] ++ " is not a valid operator!"
+
+showError (InvalidNumber number) =
+    number ++ " is not a valid number!"
 
 showError MissingNumber =
     "Expected a number"
