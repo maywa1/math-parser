@@ -1,3 +1,3 @@
 # TODO
  - add more structure to the project
- - implement variables
+ - implement functions (sin cos tan)
