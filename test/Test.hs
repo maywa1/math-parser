@@ -50,4 +50,38 @@ main = do
         , ("(-2)^2", Right 4.0)
         , ("-3 - -3", Right 0.0)
         , ("--5", Right 5.0)
+                -- left associativity
+        , ("10 - 3 - 2", Right 5.0)          -- would be 9.0 if right-associative
+        , ("10 - 3 - 2 - 1", Right 4.0)
+        , ("100 / 10 / 2", Right 5.0)        -- would be 20.0 if right-associative
+        , ("100 / 5 / 2 / 2", Right 5.0)
+        , ("20 - 5 * 2", Right 10.0)
+        , ("20 - 10 / 2", Right 15.0)
+        , ("2 - 3 + 4", Right 3.0)           -- mixed +/- left-to-right
+        , ("2 - 3 + 4 - 1", Right 2.0)
+
+        -- right associativity (should still hold)
+        , ("2^3^2", Right 512.0)             -- 2^(3^2) = 2^9, not (2^3)^2 = 64
+
+        -- decimals
+        , ("2.5 + 2.5", Right 5.0)
+        , ("10.5 / 2", Right 5.25)
+        , ("1.5 * 1.5", Right 2.25)
+
+        -- parentheses / nesting
+        , ("((2 + 3))", Right 5.0)
+        , ("(2 + 3) - (1 + 1)", Right 3.0)
+        , ("2 * (3 + (4 - 1))", Right 12.0)
+        , ("(10 - 4) / (1 + 2)", Right 2.0)
+
+        -- whitespace handling
+        , ("  2   +   3  ", Right 5.0)
+        , ("2+3*4", Right 14.0)
+
+        -- errors
+        , ("2 + ", Left UnexpectedEndOfExpression)
+        , ("(2 + 3", Left MissingParenthesis)
+        , ("2 + 3)", Left (SyntaxError TCloseParenthesis))
+        , ("2 @ 3", Left (InvalidOperator '@'))
+        , ("2..5 + 1", Left (InvalidNumber "2."))
         ]
