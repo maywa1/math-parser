@@ -1,3 +1,3 @@
 # TODO
- - Add Unary minus
- - Add parentheses support
+ - add more structure to the project
+ - implement variables
