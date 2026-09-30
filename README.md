@@ -1,4 +1,4 @@
-About
+# About
 
 A personal project to learn Haskell and explore language implementation, including parsing, interpretation, and compiler concepts.
 
@@ -6,18 +6,21 @@ The project uses no libraries outside of base and Prelude. I've implemented a le
 
 Very little AI usage.
 
-Usage
+# Usage
 
 Building:
 
+```sh
 $ cabal build
+```
 
 
 Testing:
 
+```sh
 $ cabal test
-
-TODO
+```
+# TODO
 
 Implement functions (sin, cos, tan)
 
