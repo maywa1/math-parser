@@ -1,4 +1,6 @@
-import Calculator
+import Calc.Evaluator (eval)
+import Calc.Error (CalcError(..))
+import Calc.Token (Token(..))
 import System.Exit (exitFailure, exitSuccess)
 
 testEval :: [(String, Either CalcError Double)] -> IO ()

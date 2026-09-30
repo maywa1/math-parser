@@ -1,5 +1,6 @@
 module Main where
-import Calculator
+import Calc.Evaluator (eval)
+import Calc.Error (showError)
 
 main :: IO ()
 main = do
