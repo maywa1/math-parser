@@ -60,7 +60,7 @@ main = do
         , ("2 - 3 + 4", Right 3.0)           -- mixed +/- left-to-right
         , ("2 - 3 + 4 - 1", Right 2.0)
 
-        -- right associativity (should still hold)
+        -- right associativity
         , ("2^3^2", Right 512.0)             -- 2^(3^2) = 2^9, not (2^3)^2 = 64
 
         -- decimals
