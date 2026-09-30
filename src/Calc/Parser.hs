@@ -1,103 +1,94 @@
 module Calc.Parser where
 
-import Calc.Token (Token(..))
-import Calc.Error (CalcError(..))
+import Calc.Error (CalcError (..))
+import Calc.Token (Token (..))
 
 data Operator
-    = Add
-    | Subtract
-    | Multiply
-    | Divide
-    | Exponentiation
-    deriving (Show, Eq)
-
-data Expr
-    = Number Double
-    | UnaryOp UnaryOperator Expr
-    | BinOp Operator Expr Expr
-    deriving (Show, Eq)
+  = Add
+  | Subtract
+  | Multiply
+  | Divide
+  | Exponentiation
+  deriving (Show, Eq)
 
 data UnaryOperator
-    = Positive
-    | Negative
-    deriving (Show, Eq)
+  = Positive
+  | Negative
+  deriving (Show, Eq)
 
-parseExpression :: [Token] -> Either CalcError (Expr, [Token])
-parseExpression tokens = do
-    (left, remaining) <- parseTerm tokens
+data Expr
+  = Number Double
+  | UnaryOp UnaryOperator Expr
+  | BinOp Operator Expr Expr
+  deriving (Show, Eq)
 
-    case remaining of
-        TPlus : rest -> do
-            (right, rest') <- parseExpression rest
-            pure (BinOp Add left right, rest')
+type Parser = [Token] -> Either CalcError (Expr, [Token])
 
-        TMinus : rest -> do
-            (right, rest') <- parseExpression rest
-            pure (BinOp Subtract left right, rest')
+type OpTable = Token -> Maybe (Expr -> Expr -> Expr)
 
-        _ -> pure (left, remaining)
+chainl1 :: Parser -> OpTable -> Parser
+chainl1 p opTable tokens = do
+  (first, remaining) <- p tokens
+  loop first remaining
+  where
+    loop acc (t : rest)
+      | Just op <- opTable t = do
+          (right, rest') <- p rest
+          loop (op acc right) rest'
+    loop acc remaining = pure (acc, remaining)
 
+chainr1 :: Parser -> OpTable -> Parser
+chainr1 p opTable tokens = do
+  (left, remaining) <- p tokens
+  case remaining of
+    t : rest
+      | Just op <- opTable t -> do
+          (right, rest') <- chainr1 p opTable rest
+          pure (op left right, rest')
+    _ -> pure (left, remaining)
 
-parseTerm :: [Token] -> Either CalcError (Expr, [Token])
-parseTerm tokens = do
-    (left, remaining) <- parseUnary tokens
+addOp :: OpTable
+addOp TPlus = Just (BinOp Add)
+addOp TMinus = Just (BinOp Subtract)
+addOp _ = Nothing
 
-    case remaining of
-        TMultiply : rest -> do
-            (right, rest') <- parseTerm rest
-            pure (BinOp Multiply left right, rest')
+mulOp :: OpTable
+mulOp TMultiply = Just (BinOp Multiply)
+mulOp TDivide = Just (BinOp Divide)
+mulOp _ = Nothing
 
-        TDivide : rest -> do
-            (right, rest') <- parseTerm rest
-            pure (BinOp Divide left right, rest')
+powOp :: OpTable
+powOp TExponentiate = Just (BinOp Exponentiation)
+powOp _ = Nothing
 
-        _ -> pure (left, remaining)
+parseExpression :: Parser
+parseExpression = chainl1 parseTerm addOp
 
-parseUnary :: [Token] -> Either CalcError (Expr, [Token])
-parseUnary tokens = do
-    case tokens of
-        TMinus : remaining -> do
-            (expr, rest) <- parseUnary remaining
-            pure (UnaryOp Negative expr, rest)
+parseTerm :: Parser
+parseTerm = chainl1 parseUnary mulOp
 
-        TPlus : remaining -> do
-            (expr, rest) <- parseUnary remaining
-            pure (UnaryOp Positive expr, rest)
+parseUnary :: Parser
+parseUnary (TMinus : rest) = do
+  (expr, rest') <- parseUnary rest
+  pure (UnaryOp Negative expr, rest')
+parseUnary (TPlus : rest) = do
+  (expr, rest') <- parseUnary rest
+  pure (UnaryOp Positive expr, rest')
+parseUnary tokens = parsePower tokens
 
-        _ -> parsePower tokens
+parsePower :: Parser
+parsePower = chainr1 parseFactor powOp
 
-
-parsePower :: [Token] -> Either CalcError (Expr, [Token])
-parsePower tokens = do
-    (left, remaining) <- parseFactor tokens
-
-    case remaining of
-        TExponentiate : rest -> do
-            (right, rest') <- parsePower rest
-            pure (BinOp Exponentiation left right, rest')
-        _ -> pure (left, remaining)
-
-
-parseFactor :: [Token] -> Either CalcError (Expr, [Token])
+parseFactor :: Parser
 parseFactor tokens =
-    case tokens of
-        TNumber n : remaining ->
-            pure (Number n, remaining)
-
-
-        TOpenParenthesis : remaining -> do
-            (expr, rest) <- parseExpression remaining
-            case rest of
-                TCloseParenthesis : rest' ->
-                    pure (expr, rest')
-                token : _ ->
-                    Left (SyntaxError token)
-                [] ->
-                    Left MissingParenthesis
-
-        token : _ ->
-            Left (SyntaxError token)
-
-        [] ->
-            Left UnexpectedEndOfExpression
-
+  case tokens of
+    TNumber n : remaining ->
+      pure (Number n, remaining)
+    TOpenParenthesis : remaining -> do
+      (expr, rest) <- parseExpression remaining
+      case rest of
+        TCloseParenthesis : rest' -> pure (expr, rest')
+        token : _ -> Left (SyntaxError token)
+        [] -> Left MissingParenthesis
+    token : _ -> Left (SyntaxError token)
+    [] -> Left UnexpectedEndOfExpression
