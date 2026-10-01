@@ -16,10 +16,17 @@ data UnaryOperator
   | Negative
   deriving (Show, Eq)
 
+data Function
+  = Sine
+  | Cosine
+  | Tangent
+  deriving (Show, Eq)
+
 data Expr
   = Number Double
   | UnaryOp UnaryOperator Expr
   | BinOp Operator Expr Expr
+  | ApplyFunction Function Expr
   deriving (Show, Eq)
 
 type Parser = [Token] -> Either CalcError (Expr, [Token])
@@ -84,11 +91,43 @@ parseFactor tokens =
   case tokens of
     TNumber n : remaining ->
       pure (Number n, remaining)
-    TOpenParenthesis : remaining -> do
-      (expr, rest) <- parseExpression remaining
-      case rest of
-        TCloseParenthesis : rest' -> pure (expr, rest')
-        token : _ -> Left (SyntaxError token)
-        [] -> Left MissingParenthesis
+
+    TOpenParenthesis : remaining ->
+      parseParenthesized Nothing remaining
+
+    TCosine : remaining ->
+      parseFunctionApplication Cosine remaining
+
+    TSine : remaining ->
+      parseFunctionApplication Sine remaining
+
+    TTangent : remaining ->
+      parseFunctionApplication Tangent remaining
+
     token : _ -> Left (SyntaxError token)
     [] -> Left UnexpectedEndOfExpression
+
+parseFunctionApplication :: Function -> [Token] -> Either CalcError (Expr, [Token])
+parseFunctionApplication f tokens =
+  case tokens of
+    TOpenParenthesis : remaining ->
+      parseParenthesized (Just $ ApplyFunction f) remaining
+
+    TNumber n : remaining ->
+      pure (ApplyFunction f (Number n), remaining)
+
+    token : _ -> Left (SyntaxError token)
+    [] -> Left UnexpectedEndOfExpression
+
+parseParenthesized :: Maybe (Expr -> Expr) -> [Token] -> Either CalcError (Expr, [Token])
+parseParenthesized exprConstructor remaining = do
+  (expr, rest) <- parseExpression remaining
+
+  let builtExpr = case exprConstructor of
+        Nothing -> expr
+        Just constructor -> constructor expr
+
+  case rest of
+    TCloseParenthesis : rest' -> pure (builtExpr, rest')
+    token : _                 -> Left (SyntaxError token)
+    []                        -> Left MissingParenthesis

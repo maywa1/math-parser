@@ -22,8 +22,10 @@ $ cabal test
 ```
 # TODO
 
-Implement functions (sin, cos, tan)
+- Implement functions (sin, cos, tan)
 
-Improve error handling (?)
+- Implement implicit multiplication
 
-Add a proper CLI wrapper
+- Improve error handling (?)
+
+- Add a proper CLI wrapper

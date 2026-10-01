@@ -4,8 +4,14 @@ import Data.Char (isDigit, isSpace)
 import Calc.Token (Token(..))
 import Calc.Error (CalcError(..))
 
+
+
 tokenize :: String -> Either CalcError [Token]
 tokenize [] = Right []
+tokenize ('p':'i' : rest) = prepend (TNumber pi) rest
+tokenize ('c':'o':'s' : rest) = prepend TCosine rest
+tokenize ('s':'i':'n' : rest) = prepend TSine rest
+tokenize ('t':'a':'n' : rest) = prepend TTangent rest
 tokenize ('(' : rest) = prepend TOpenParenthesis rest
 tokenize (')' : rest) = prepend TCloseParenthesis rest
 tokenize ('+' : rest) = prepend TPlus rest

@@ -86,4 +86,55 @@ main = do
         , ("2 + 3)", Left (SyntaxError TCloseParenthesis))
         , ("2 @ 3", Left (InvalidOperator '@'))
         , ("2..5 + 1", Left (InvalidNumber "2."))
+        -- trig functions (exact values)
+        , ("sin(0)", Right 0.0)
+        , ("cos(0)", Right 1.0)
+        , ("tan(0)", Right 0.0)
+
+        -- trig functions (compare against Prelude so float rounding can't bite)
+        , ("sin(1)", Right (sin 1.0))
+        , ("cos(1)", Right (cos 1.0))
+        , ("tan(1)", Right (tan 1.0))
+        , ("sin(-1)", Right (sin (-1.0)))
+        , ("cos(2.5)", Right (cos 2.5))
+
+        -- functions inside expressions
+        , ("sin(0) + 3", Right 3.0)
+        , ("2 * cos(0)", Right 2.0)
+        , ("2 + 3 * cos(0)", Right 5.0)
+        , ("cos(0) ^ 3", Right 1.0)
+        , ("-cos(0)", Right (-1.0))
+        , ("-sin(1)", Right (negate (sin 1.0)))
+        , ("cos(0) - -cos(0)", Right 2.0)
+
+        -- arguments that are full expressions
+        , ("sin(1 + 1)", Right (sin 2.0))
+        , ("cos(2 * 0)", Right 1.0)
+        , ("sin((1 + 1) * 2)", Right (sin 4.0))
+        , ("cos(sin(0))", Right 1.0)           -- nested functions
+        , ("sin(cos(0))", Right (sin 1.0))
+        , ("sin(0 - 1)", Right (sin (-1.0)))
+
+        -- whitespace around functions
+        , ("sin( 0 )", Right 0.0)
+        , ("  cos(0)  ", Right 1.0)
+
+        -- function errors
+        , ("sin(", Left UnexpectedEndOfExpression)
+        , ("sin(0", Left MissingParenthesis)
+        , ("sin()", Left UnexpectedEndOfExpression)
+        , ("sin", Left UnexpectedEndOfExpression)
+        , ("tan(1 / 0)", Left DivisionByZero)
+
+        -- implicit multiplication (not supported yet, so these should fail)
+        , ("2(3)", Left (SyntaxError TOpenParenthesis))
+        , ("(2)(3)", Left (SyntaxError TOpenParenthesis))
+        , ("(2 + 3)(4 + 5)", Left (SyntaxError TOpenParenthesis))
+        , ("2 3", Left (SyntaxError (TNumber 3.0)))
+        , ("2 cos(0)", Left (SyntaxError TCosine))
+        , ("2cos(0)", Left (SyntaxError TCosine))
+        , ("(2)cos(0)", Left (SyntaxError TCosine))
+        , ("cos(0)2", Left (SyntaxError TCosine))
+        , ("cos(0)(2)", Left (SyntaxError TOpenParenthesis))
+        , ("sin(0) cos(0)", Left (SyntaxError TCosine))
         ]
