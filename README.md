@@ -14,6 +14,13 @@ Building:
 $ cabal build
 ```
 
+Running:
+
+```sh
+$ cabal run
+```
+
+As for how to use it, you can look at the tests for now.
 
 Testing:
 
