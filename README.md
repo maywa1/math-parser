@@ -22,7 +22,7 @@ $ cabal test
 ```
 # TODO
 
-- Implement functions (sin, cos, tan)
+- Implement user implemented functions/constants
 
 - Implement implicit multiplication
 
