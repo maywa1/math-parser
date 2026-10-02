@@ -16,17 +16,11 @@ data UnaryOperator
   | Negative
   deriving (Show, Eq)
 
-data Function
-  = Sine
-  | Cosine
-  | Tangent
-  deriving (Show, Eq)
-
 data Expr
   = Number Double
   | UnaryOp UnaryOperator Expr
   | BinOp Operator Expr Expr
-  | ApplyFunction Function Expr
+  | ApplyFunction String Expr
   deriving (Show, Eq)
 
 type Parser = [Token] -> Either CalcError (Expr, [Token])
@@ -95,19 +89,13 @@ parseFactor tokens =
     TOpenParenthesis : remaining ->
       parseParenthesized Nothing remaining
 
-    TCosine : remaining ->
-      parseFunctionApplication Cosine remaining
-
-    TSine : remaining ->
-      parseFunctionApplication Sine remaining
-
-    TTangent : remaining ->
-      parseFunctionApplication Tangent remaining
+    TFunction f : remaining ->
+      parseFunctionApplication f remaining
 
     token : _ -> Left (SyntaxError token)
     [] -> Left UnexpectedEndOfExpression
 
-parseFunctionApplication :: Function -> [Token] -> Either CalcError (Expr, [Token])
+parseFunctionApplication :: String -> [Token] -> Either CalcError (Expr, [Token])
 parseFunctionApplication f tokens =
   case tokens of
     TOpenParenthesis : remaining ->

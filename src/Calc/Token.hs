@@ -9,7 +9,5 @@ data Token
     | TNumber Double
     | TOpenParenthesis
     | TCloseParenthesis
-    | TSine
-    | TCosine
-    | TTangent
+    | TFunction String
     deriving (Show, Eq)

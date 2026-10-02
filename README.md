@@ -28,6 +28,7 @@ Testing:
 $ cabal test
 ```
 # TODO
+- Move function logic from Lexer, make tokenization dumb and treat non symbols as identifiers later defined in the parser
 
 - Implement user implemented functions/constants
 

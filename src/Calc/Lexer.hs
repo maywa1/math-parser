@@ -1,30 +1,47 @@
 module Calc.Lexer (tokenize) where
 
-import Data.Char (isDigit, isSpace)
+import Data.List (isPrefixOf, maximumBy)
+import Data.Ord  (comparing)
+import Data.Char (isDigit, isSpace, isAlpha, isAlphaNum)
 import Calc.Token (Token(..))
 import Calc.Error (CalcError(..))
+import Calc.Map (Map, lookUp)
 
+identMap :: Map String Token
+identMap =
+  [ ("pi" , TNumber pi)
+  , ("cos", TFunction "cos")
+  , ("sin", TFunction "sin")
+  , ("tan", TFunction "tan")
+  ]
 
+symbolMap :: Map Char Token
+symbolMap =
+  [ ('('  , TOpenParenthesis)
+  , (')'  , TCloseParenthesis)
+  , ('+'  , TPlus)
+  , ('-'  , TMinus)
+  , ('*'  , TMultiply)
+  , ('/'  , TDivide)
+  , ('^'  , TExponentiate)
+  ]
 
 tokenize :: String -> Either CalcError [Token]
 tokenize [] = Right []
-tokenize ('p':'i' : rest) = prepend (TNumber pi) rest
-tokenize ('c':'o':'s' : rest) = prepend TCosine rest
-tokenize ('s':'i':'n' : rest) = prepend TSine rest
-tokenize ('t':'a':'n' : rest) = prepend TTangent rest
-tokenize ('(' : rest) = prepend TOpenParenthesis rest
-tokenize (')' : rest) = prepend TCloseParenthesis rest
-tokenize ('+' : rest) = prepend TPlus rest
-tokenize ('-' : rest) = prepend TMinus rest
-tokenize ('*' : rest) = prepend TMultiply rest
-tokenize ('/' : rest) = prepend TDivide rest
-tokenize ('^' : rest) = prepend TExponentiate rest
 tokenize input@(c : rest)
   | isSpace c             = tokenize rest
   | isDigit c || c == '.' = do
       (token, rest') <- lexNumber input
       prepend token rest'
-  | otherwise             = Left (InvalidOperator c)
+  | isAlpha c = do
+      let (ident, rest') = span isAlphaNum input
+      case lookup ident identMap of
+        Just token -> prepend token rest'
+        Nothing    -> Left (UndefinedIdentifier ident)
+  | otherwise =
+    case lookup c symbolMap of
+      Just token -> prepend token rest
+      Nothing    -> Left (InvalidOperator c)
 
 prepend :: Token -> String -> Either CalcError [Token]
 prepend token rest = (token :) <$> tokenize rest

@@ -1,7 +1,7 @@
 module Calc.Evaluator where
 
 import Calc.Error (CalcError(..))
-import Calc.Parser (Operator(..), Expr(..), UnaryOperator(..), parseExpression, Function (Cosine,Sine,Tangent))
+import Calc.Parser (Operator(..), Expr(..), UnaryOperator(..), parseExpression)
 import Calc.Lexer (tokenize)
 
 applyOperator :: Operator -> Double -> Double -> Either CalcError Double
@@ -12,10 +12,10 @@ applyOperator Exponentiation x y = Right (x ** y)
 applyOperator Divide         _ 0 = Left DivisionByZero
 applyOperator Divide         x y = Right (x / y)
 
-applyFunction :: Function -> Double -> Either CalcError Double
-applyFunction Cosine  x = Right (cos x)
-applyFunction Sine    x = Right (sin x)
-applyFunction Tangent x = Right (tan x)
+applyFunction :: String -> Double -> Either CalcError Double
+applyFunction "cos"  x = Right (cos x)
+applyFunction "sin"    x = Right (sin x)
+applyFunction "tan" x = Right (tan x)
 
 evalExpr :: Expr -> Either CalcError Double
 evalExpr (Number n) = Right n

@@ -5,6 +5,7 @@ import Calc.Token (Token)
 data CalcError
     = InvalidOperator Char
     | InvalidNumber String
+    | UndefinedIdentifier String
     | MissingNumber
     | DivisionByZero
     | SyntaxError Token
@@ -18,6 +19,9 @@ showError (InvalidOperator symbol) =
 
 showError (InvalidNumber number) =
     number ++ " is not a valid number!"
+
+showError (UndefinedIdentifier str) =
+    "Undefined identifier: " ++ str
 
 showError MissingParenthesis  =
     "You forgot to close parenthesis somewhere"

@@ -10,6 +10,7 @@ library
         Calc.Token
         Calc.Parser
         Calc.Lexer
+        Calc.Map
     build-depends:
         base
     default-language: Haskell2010
