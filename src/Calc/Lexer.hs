@@ -4,27 +4,23 @@ import Data.List (isPrefixOf, maximumBy)
 import Data.Ord  (comparing)
 import Data.Char (isDigit, isSpace, isAlpha, isAlphaNum)
 import Calc.Token (Token(..))
-import Calc.Error (CalcError(..))
-import Calc.Map (Map, lookUp)
-
-identMap :: Map String Token
-identMap =
-  [ ("pi" , TNumber pi)
-  , ("cos", TFunction "cos")
-  , ("sin", TFunction "sin")
-  , ("tan", TFunction "tan")
-  ]
+import Data.Map (Map)
+import Calc.Error
+import qualified Data.Map as Map
 
 symbolMap :: Map Char Token
 symbolMap =
-  [ ('('  , TOpenParenthesis)
-  , (')'  , TCloseParenthesis)
-  , ('+'  , TPlus)
-  , ('-'  , TMinus)
-  , ('*'  , TMultiply)
-  , ('/'  , TDivide)
-  , ('^'  , TExponentiate)
-  ]
+  Map.fromList
+    [ ('(', TOpenParenthesis)
+    , (')', TCloseParenthesis)
+    , ('+', TPlus)
+    , ('-', TMinus)
+    , ('*', TMultiply)
+    , ('/', TDivide)
+    , ('^', TExponentiate)
+    , (',', TComma)
+    , ('=', TEquals)
+    ]
 
 tokenize :: String -> Either CalcError [Token]
 tokenize [] = Right []
@@ -35,11 +31,9 @@ tokenize input@(c : rest)
       prepend token rest'
   | isAlpha c = do
       let (ident, rest') = span isAlphaNum input
-      case lookup ident identMap of
-        Just token -> prepend token rest'
-        Nothing    -> Left (UndefinedIdentifier ident)
+      prepend (TIdentifier ident) rest'
   | otherwise =
-    case lookup c symbolMap of
+    case Map.lookup c symbolMap of
       Just token -> prepend token rest
       Nothing    -> Left (InvalidOperator c)
 

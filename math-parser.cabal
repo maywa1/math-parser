@@ -10,9 +10,9 @@ library
         Calc.Token
         Calc.Parser
         Calc.Lexer
-        Calc.Map
     build-depends:
-        base
+        base,
+        containers
     default-language: Haskell2010
 
 executable math-parser
@@ -20,6 +20,7 @@ executable math-parser
     hs-source-dirs: src
     build-depends:
         base,
+        containers,
         math-parser
     default-language: Haskell2010
 
