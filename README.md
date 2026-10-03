@@ -28,12 +28,6 @@ Testing:
 $ cabal test
 ```
 # TODO
-- Move function logic from Lexer, make tokenization dumb and treat non symbols as identifiers later defined in the parser
-
-- Implement user implemented functions/constants
-
+- Improve error handling, identify which part of the process failed using separate error types, for example ParseError, LexerError, EvalError.
 - Implement implicit multiplication
-
-- Improve error handling (?)
-
 - Add a proper CLI wrapper
