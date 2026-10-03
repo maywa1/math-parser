@@ -29,5 +29,7 @@ $ cabal test
 ```
 # TODO
 - Improve error handling, identify which part of the process failed using separate error types, for example ParseError, LexerError, EvalError.
-- Implement implicit multiplication
+- Add tests for functions and constants
+- Test tokenizer, parser, eval individually (idk if this is a good idea but looks like it)
 - Add a proper CLI wrapper
+- Implement implicit multiplication
