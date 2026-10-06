@@ -2,9 +2,9 @@
 
 A personal project to learn Haskell and explore language implementation, including parsing, interpretation, and compiler concepts.
 
-The project uses no libraries outside of base and Prelude. I've implemented a lexer, AST, parser, and evaluation function, along with some tests using a custom test suite.
+The project uses no libraries outside of base, containers, and Prelude. I've implemented a lexer, AST, parser, and evaluator, along with some tests using a custom test suite (a bit simple though).
 
-Very little AI usage.
+Very little AI usage (mostly for tests).
 
 # Usage
 
@@ -20,7 +20,7 @@ Running:
 $ cabal run
 ```
 
-As for how to use it, you can look at the tests for now.
+As for how to use it, you can look at the tests for now, and run them since not all of them pass yet.
 
 Testing:
 
@@ -28,8 +28,7 @@ Testing:
 $ cabal test
 ```
 # TODO
-- Improve error handling, identify which part of the process failed using separate error types, for example ParseError, LexerError, EvalError.
-- Add tests for functions and constants
+- Improve error handling, point exactly where in the input the error is
 - Test tokenizer, parser, eval individually (idk if this is a good idea but looks like it)
 - Add a proper CLI wrapper
 - Implement implicit multiplication
