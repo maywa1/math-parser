@@ -3,50 +3,52 @@ module Calc.Error where
 import Calc.Token (Token)
 import Text.Read.Lex (expect)
 
-data CalcError
-    = InvalidOperator Char
-    | InvalidNumber String
-    | UndefinedVariable String
-    | UndefinedFunction String
-    | ExpectedNumber
-    | DivisionByZero
-    | SyntaxError Token
-    | MissingParenthesis
-    | UnexpectedEndOfExpression
-    | DuplicateParameter String
-    | InvalidArgumentCount Int Int -- expected, actual
-    deriving (Show, Eq)
+data Error
+  = EvaluationError EvaluationError
+  | LexError LexerError
+  | ParseError ParserError
+  deriving (Show, Eq)
 
-showError :: CalcError -> String
-showError (InvalidOperator symbol) =
-    [symbol] ++ " is not a valid operator!"
+data EvaluationError
+  = InvalidArgumentCount Int Int -- expected, actual
+  | ExpectedNumber
+  | DivisionByZero
+  | UndefinedVariable String
+  | UndefinedFunction String
+  deriving (Show, Eq)
 
-showError (InvalidNumber number) =
-    number ++ " is not a valid number!"
+data LexerError
+  = InvalidOperator Char
+  | InvalidNumber String
+  deriving (Show, Eq)
 
-showError (UndefinedVariable str) =
-    "Undefined variable: " ++ str
+data ParserError
+  = DuplicateParameter String
+  | SyntaxError Token
+  | UnexpectedEndOfExpression
+  | MissingParenthesis
+  deriving (Show, Eq)
 
-showError (UndefinedFunction str) =
-    "Undefined function: " ++ str
 
-showError MissingParenthesis  =
-    "You forgot to close parenthesis somewhere"
+showError :: Error -> String
 
-showError (InvalidArgumentCount expected actual) =
-    "Invalid argument count. Expected: " ++ show expected ++ "Got: " ++ show actual
+showError (ParseError err) =
+  case err of
+    DuplicateParameter param  -> "Duplicate parameter: " ++ param
+    SyntaxError token         -> "Syntax error: " ++ show token
+    UnexpectedEndOfExpression -> "Unexpected end of expression!"
+    MissingParenthesis        -> "You forgot to close parenthesis somewhere"
 
-showError ExpectedNumber =
-    "Expected a number"
+showError (LexError err) =
+  case err of
+    InvalidOperator c -> [c] ++ " is not a valid operator!"
+    InvalidNumber   n -> n ++ " is not a valid number!"
 
-showError DivisionByZero =
-    "Cannot divide by zero"
-
-showError (SyntaxError token) =
-    "Syntax error: " ++ show token
-
-showError UnexpectedEndOfExpression =
-    "Unexpected end of expression!"
-
-showError (DuplicateParameter p)=
-    "Duplicate parameter: " ++ p
+showError (EvaluationError err) =
+  case err of
+    UndefinedVariable str -> "Undefined variable: " ++ str
+    UndefinedFunction str -> "Undefined function: " ++ str
+    InvalidArgumentCount expected actual ->
+      "Invalid argument count. Expected: " ++ show expected ++ "Got: " ++ show actual
+    ExpectedNumber -> "Expected a number"
+    DivisionByZero -> "Cannot divide by zero"

@@ -1,6 +1,6 @@
-module Calc.Evaluator(interpreter) where
+module Calc.Evaluator(run, Value(..)) where
 
-import Calc.Error (CalcError(..))
+import Calc.Error (EvaluationError (ExpectedNumber, UndefinedVariable, UndefinedFunction, DivisionByZero, InvalidArgumentCount), Error(..))
 import Calc.Parser
   ( Operator(..)
   , Expr(..)
@@ -9,13 +9,14 @@ import Calc.Parser
   )
 import qualified Data.Map as Map
 import Calc.Lexer (tokenize)
+import Data.Bifunctor (first)
 
 type Env = Map.Map String Value
 
 data Value
   = VNumber Double
   | VFunction [String] Expr
-  | VBuiltinFunction ([Double] -> Either CalcError Double)
+  | VBuiltinFunction ([Double] -> Either EvaluationError Double)
 
 instance Show Value where
   show (VNumber n) = show n
@@ -32,13 +33,13 @@ builtinEnv =
     , ("e" , VNumber (exp 1))
     ]
     where
-      runFunction :: ([Double] -> Double) -> Int -> [Double] -> Either CalcError Double
+      runFunction :: ([Double] -> Double) -> Int -> [Double] -> Either EvaluationError Double
       runFunction func expected args =
         if length args == expected
           then Right (func args)
-          else Left (InvalidArgumentCount (length args) expected)
+          else Left (InvalidArgumentCount expected (length args))
 
-applyOperator :: Operator -> Double -> Double -> Either CalcError Double
+applyOperator :: Operator -> Double -> Double -> Either EvaluationError Double
 applyOperator Add            x y = Right (x + y)
 applyOperator Subtract       x y = Right (x - y)
 applyOperator Multiply       x y = Right (x * y)
@@ -46,7 +47,7 @@ applyOperator Exponentiation x y = Right (x ** y)
 applyOperator Divide         _ 0 = Left DivisionByZero
 applyOperator Divide         x y = Right (x / y)
 
-eval :: Env -> Expr -> Either CalcError Value
+eval :: Env -> Expr -> Either EvaluationError Value
 eval env (Number n) = Right (VNumber n)
 
 eval env (UnaryOp Negative expr) = do
@@ -60,10 +61,13 @@ eval env (ApplyFunction f expressions) =
   case Map.lookup f env of
     Just (VFunction args body) -> do
       values <- mapM (eval env) expressions
+      let argCount = length values
+      let expectedArgCount = length args
 
-      let tempEnv = Map.union (Map.fromList (zip args values)) env
-
-      eval tempEnv body
+      if argCount == expectedArgCount then do
+        let tempEnv = Map.union (Map.fromList (zip args values)) env
+        eval tempEnv body
+      else Left (InvalidArgumentCount expectedArgCount argCount)
 
     Just (VBuiltinFunction function) -> do
       values <- mapM (eval env) expressions
@@ -74,7 +78,7 @@ eval env (ApplyFunction f expressions) =
     Nothing -> Left (UndefinedFunction f)
 
   where
-    unwrapNumber :: Value -> Either CalcError Double
+    unwrapNumber :: Value -> Either EvaluationError Double
     unwrapNumber (VNumber n) = pure n
     unwrapNumber _ = Left ExpectedNumber
 
@@ -99,7 +103,7 @@ eval env (BinOp operator left right) = do
 
     _ -> Left ExpectedNumber
 
-evalStatement :: Env -> Statement -> Either CalcError (Value, Env)
+evalStatement :: Env -> Statement -> Either EvaluationError (Value, Env)
 evalStatement env statement =
   case statement of
     Expression expr -> do
@@ -119,13 +123,13 @@ evalStatement env statement =
           in Right (VNumber n, env')
         _         -> Left ExpectedNumber
 
-interpreter :: Env -> String -> Either CalcError (Value, Env)
-interpreter env input = do
-  tokens <- tokenize input
-  (statement, _) <- parseStatement tokens
-  if Map.null env then do
-    result <- (evalStatement builtinEnv statement)
-    pure result
-  else do
-    result <- (evalStatement env statement)
-    pure result
+
+run :: Env -> String -> Either Error (Value, Env)
+run env input = do
+  tokens <- first LexError (tokenize input)
+  (statement, _) <- first ParseError (parseStatement tokens)
+
+  if Map.null env
+    then first EvaluationError (evalStatement builtinEnv statement)
+    else first EvaluationError (evalStatement env statement)
+

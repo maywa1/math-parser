@@ -1,6 +1,0 @@
-let y: I32 = 67
-let x &= y
-
-use x
-
-end

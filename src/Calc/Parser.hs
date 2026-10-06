@@ -1,6 +1,6 @@
 module Calc.Parser where
 
-import Calc.Error (CalcError (..))
+import Calc.Error (ParserError (..))
 import Calc.Token (Token (..))
 import Data.Bifunctor (first)
 
@@ -31,7 +31,7 @@ data Expr
   | ApplyFunction String [Expr]
   deriving (Show, Eq)
 
-type Parser a = [Token] -> Either CalcError (a, [Token])
+type Parser a = [Token] -> Either ParserError (a, [Token])
 
 type OpTable = Token -> Maybe (Expr -> Expr -> Expr)
 
@@ -58,7 +58,7 @@ unaryOp _ = Nothing
 
 -- combinators
 
--- | Left-associative chain: a - b - c == (a - b) - c
+-- | left associative chain: a - b - c == (a - b) - c
 chainl1 :: Parser Expr -> OpTable -> Parser Expr
 chainl1 p opTable tokens = do
   (firstExpr, rest) <- p tokens
@@ -131,7 +131,7 @@ parseUnary (t : rest)
       pure (UnaryOp op expr, rest')
 parseUnary tokens = parsePower tokens
 
--- | Right-associative, and the exponent may carry a unary sign:
+-- | right associative, and the exponent may carry a unary sign:
 --   2 ^ 3 ^ 2 == 2 ^ (3 ^ 2),  2 ^ -3 == 2 ^ (-3),  -2 ^ 2 == -(2 ^ 2)
 parsePower :: Parser Expr
 parsePower tokens = do

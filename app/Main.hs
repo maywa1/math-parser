@@ -1,6 +1,6 @@
 module Main where
 
-import Calc.Evaluator (interpreter)
+import Calc.Evaluator (run)
 import Calc.Error (showError)
 import qualified Data.Map as Map
 
@@ -12,7 +12,7 @@ main =
       putStrLn "> "
       input <- getLine
 
-      case interpreter env input of
+      case run env input of
         Right (result, newEnv) -> do
           putStrLn ("Result is: " ++ show result)
           loop newEnv

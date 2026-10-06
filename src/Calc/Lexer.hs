@@ -22,7 +22,7 @@ symbolMap =
     , ('=', TEquals)
     ]
 
-tokenize :: String -> Either CalcError [Token]
+tokenize :: String -> Either LexerError [Token]
 tokenize [] = Right []
 tokenize input@(c : rest)
   | isSpace c             = tokenize rest
@@ -37,16 +37,16 @@ tokenize input@(c : rest)
       Just token -> prepend token rest
       Nothing    -> Left (InvalidOperator c)
 
-prepend :: Token -> String -> Either CalcError [Token]
+prepend :: Token -> String -> Either LexerError [Token]
 prepend token rest = (token :) <$> tokenize rest
 
-lexNumber :: String -> Either CalcError (Token, String)
+lexNumber :: String -> Either LexerError (Token, String)
 lexNumber input =
   case span isDigit input of
     (whole, '.' : afterDot) -> lexDecimal whole afterDot
     (whole, rest)           -> Right (TNumber (read whole), rest)
 
-lexDecimal :: String -> String -> Either CalcError (Token, String)
+lexDecimal :: String -> String -> Either LexerError (Token, String)
 lexDecimal whole afterDot
   | null whole || null fraction = Left (InvalidNumber number)
   | otherwise                   = Right (TNumber (read number), rest)
