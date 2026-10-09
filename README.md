@@ -28,7 +28,7 @@ Testing:
 $ cabal test
 ```
 # TODO
-- Improve error handling, point exactly where in the input the error is
+- Add proper documentation with haddock (WIP, still don't know how much coverage I have to get), maybe publish in hackage in the future?
 - Test tokenizer, parser, eval individually (idk if this is a good idea but looks like it)
 - Add a proper CLI wrapper
 - Implement implicit multiplication

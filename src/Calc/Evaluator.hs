@@ -1,12 +1,8 @@
 module Calc.Evaluator(run, Value(..)) where
 
 import Calc.Error (EvaluationError (ExpectedNumber, UndefinedVariable, UndefinedFunction, DivisionByZero, InvalidArgumentCount), Error(..))
-import Calc.Parser
-  ( Operator(..)
-  , Expr(..)
-  , UnaryOperator(..)
-  , Statement(..), parseStatement
-  )
+import Calc.Parser(parseStatement)
+import Calc.AST
 import qualified Data.Map as Map
 import Calc.Lexer (tokenize)
 import Data.Bifunctor (first)
@@ -126,10 +122,7 @@ evalStatement env statement =
 
 run :: Env -> String -> Either Error (Value, Env)
 run env input = do
-  tokens <- first LexError (tokenize input)
-  (statement, _) <- first ParseError (parseStatement tokens)
-
-  if Map.null env
-    then first EvaluationError (evalStatement builtinEnv statement)
-    else first EvaluationError (evalStatement env statement)
-
+  tokens <- tokenize input
+  (statement, _) <- parseStatement tokens
+  let env' = if Map.null env then builtinEnv else env
+  first (`EvaluationError` Nothing) (evalStatement env' statement)

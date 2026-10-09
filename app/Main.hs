@@ -18,5 +18,5 @@ main =
           loop newEnv
 
         Left err ->
-          putStrLn ("Error: " ++ showError err)
+          putStrLn ("Error: " ++ showError err input)
 

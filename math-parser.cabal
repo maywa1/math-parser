@@ -10,6 +10,7 @@ library
         Calc.Token
         Calc.Parser
         Calc.Lexer
+        Calc.AST
     build-depends:
         base,
         containers

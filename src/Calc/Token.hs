@@ -1,6 +1,18 @@
 module Calc.Token where
 
-data Token
+data SourceSpan = SourceSpan
+    { spanStart :: Int
+    , spanEnd   :: Int
+    }
+    deriving (Show, Eq)
+
+data Token = Token
+    { tokenType :: TokenType
+    , tokenSpan :: SourceSpan
+    }
+    deriving (Show, Eq)
+
+data TokenType
     = TPlus
     | TMinus
     | TMultiply
@@ -12,4 +24,5 @@ data Token
     | TEquals
     | TComma
     | TIdentifier String
+    | TEOF
     deriving (Show, Eq)

@@ -1,14 +1,12 @@
 module Calc.Lexer (tokenize) where
 
-import Data.List (isPrefixOf, maximumBy)
-import Data.Ord  (comparing)
-import Data.Char (isDigit, isSpace, isAlpha, isAlphaNum)
-import Calc.Token (Token(..))
+import Calc.Error (Error (..), LexerError (..))
+import Calc.Token (SourceSpan (..), Token (..), TokenType (..))
+import Data.Char (isAlpha, isAlphaNum, isDigit, isSpace)
 import Data.Map (Map)
-import Calc.Error
 import qualified Data.Map as Map
 
-symbolMap :: Map Char Token
+symbolMap :: Map Char TokenType
 symbolMap =
   Map.fromList
     [ ('(', TOpenParenthesis)
@@ -22,34 +20,41 @@ symbolMap =
     , ('=', TEquals)
     ]
 
-tokenize :: String -> Either LexerError [Token]
-tokenize [] = Right []
-tokenize input@(c : rest)
-  | isSpace c             = tokenize rest
-  | isDigit c || c == '.' = do
-      (token, rest') <- lexNumber input
-      prepend token rest'
-  | isAlpha c = do
-      let (ident, rest') = span isAlphaNum input
-      prepend (TIdentifier ident) rest'
-  | otherwise =
-    case Map.lookup c symbolMap of
-      Just token -> prepend token rest
-      Nothing    -> Left (InvalidOperator c)
+-- | Spans are 0-based offsets into the input with an exclusive end.
+--   The token list always ends with a TEOF token at the end of the input.
+tokenize :: String -> Either Error [Token]
+tokenize = go 0
+  where
+    go :: Int -> String -> Either Error [Token]
+    go pos [] = Right [Token TEOF (SourceSpan pos pos)]
+    go pos input@(c : rest)
+      | isSpace c = go (pos + 1) rest
+      | isDigit c || c == '.' = do
+          (tokenType, rest') <- lexNumber pos input
+          emit pos (length input - length rest') tokenType rest'
+      | isAlpha c =
+          let (ident, rest') = span isAlphaNum input
+           in emit pos (length ident) (TIdentifier ident) rest'
+      | otherwise =
+          case Map.lookup c symbolMap of
+            Just tokenType -> emit pos 1 tokenType rest
+            Nothing -> Left (LexError (InvalidOperator c) (SourceSpan pos (pos + 1)))
 
-prepend :: Token -> String -> Either LexerError [Token]
-prepend token rest = (token :) <$> tokenize rest
+    emit :: Int -> Int -> TokenType -> String -> Either Error [Token]
+    emit pos len tokenType rest =
+      (Token tokenType (SourceSpan pos (pos + len)) :) <$> go (pos + len) rest
 
-lexNumber :: String -> Either LexerError (Token, String)
-lexNumber input =
+lexNumber :: Int -> String -> Either Error (TokenType, String)
+lexNumber pos input =
   case span isDigit input of
-    (whole, '.' : afterDot) -> lexDecimal whole afterDot
-    (whole, rest)           -> Right (TNumber (read whole), rest)
+    (whole, '.' : afterDot) -> lexDecimal pos whole afterDot
+    (whole, rest) -> Right (TNumber (read whole), rest)
 
-lexDecimal :: String -> String -> Either LexerError (Token, String)
-lexDecimal whole afterDot
-  | null whole || null fraction = Left (InvalidNumber number)
-  | otherwise                   = Right (TNumber (read number), rest)
+lexDecimal :: Int -> String -> String -> Either Error (TokenType, String)
+lexDecimal pos whole afterDot
+  | null whole || null fraction =
+      Left (LexError (InvalidNumber number) (SourceSpan pos (pos + length number)))
+  | otherwise = Right (TNumber (read number), rest)
   where
     (fraction, rest) = span isDigit afterDot
-    number           = whole ++ "." ++ fraction
+    number = whole ++ "." ++ fraction

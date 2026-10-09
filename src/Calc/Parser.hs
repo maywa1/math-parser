@@ -1,39 +1,29 @@
 module Calc.Parser where
 
-import Calc.Error (ParserError (..))
-import Calc.Token (Token (..))
+import Calc.AST
+import Calc.Error (Error (..), ParserError (..))
+import Calc.Token (SourceSpan (..), Token (..), TokenType (..))
 import Data.Bifunctor (first)
 
-data Operator
-  = Add
-  | Subtract
-  | Multiply
-  | Divide
-  | Exponentiation
-  deriving (Show, Eq)
+type Parser a = [Token] -> Either Error (a, [Token])
 
-data UnaryOperator
-  = Positive
-  | Negative
-  deriving (Show, Eq)
+-- operator tables only care about the kind of token, not its position
+type OpTable = TokenType -> Maybe (Expr -> Expr -> Expr)
 
-data Statement
-  = Expression Expr
-  | FunctionDefinition String [String] Expr
-  | ConstantDefinition String Expr
-  deriving (Show, Eq)
+-- error helpers
 
-data Expr
-  = Number Double
-  | Variable String
-  | UnaryOp UnaryOperator Expr
-  | BinOp Operator Expr Expr
-  | ApplyFunction String [Expr]
-  deriving (Show, Eq)
+-- fail at the first remaining token
+failAt :: ParserError -> [Token] -> Either Error a
+failAt err (t : _) = Left (ParseError err (tokenSpan t))
+failAt err [] = Left (ParseError err (SourceSpan 0 0)) -- unreachable if the lexer always appends TEOF
 
-type Parser a = [Token] -> Either ParserError (a, [Token])
+-- at EOF report the given error, anywhere else it's a syntax error
+unexpectedOr :: ParserError -> [Token] -> Either Error a
+unexpectedOr err ts@(Token TEOF _ : _) = failAt err ts
+unexpectedOr _ ts = failAt SyntaxError ts
 
-type OpTable = Token -> Maybe (Expr -> Expr -> Expr)
+unexpected :: [Token] -> Either Error a
+unexpected = unexpectedOr UnexpectedEndOfExpression
 
 -- operator tables
 
@@ -51,21 +41,21 @@ powOp :: OpTable
 powOp TExponentiate = Just (BinOp Exponentiation)
 powOp _ = Nothing
 
-unaryOp :: Token -> Maybe UnaryOperator
+unaryOp :: TokenType -> Maybe UnaryOperator
 unaryOp TPlus = Just Positive
 unaryOp TMinus = Just Negative
 unaryOp _ = Nothing
 
 -- combinators
 
--- | left associative chain: a - b - c == (a - b) - c
+-- left associative chain: a - b - c == (a - b) - c
 chainl1 :: Parser Expr -> OpTable -> Parser Expr
 chainl1 p opTable tokens = do
   (firstExpr, rest) <- p tokens
   loop firstExpr rest
   where
     loop acc (t : ts)
-      | Just op <- opTable t = do
+      | Just op <- opTable (tokenType t) = do
           (right, rest') <- p ts
           loop (op acc right) rest'
     loop acc ts = pure (acc, ts)
@@ -75,48 +65,43 @@ chainl1 p opTable tokens = do
 parseStatement :: Parser Statement
 parseStatement tokens = do
   (stmt, rest) <-
-    if TEquals `elem` tokens
+    if TEquals `elem` map tokenType tokens
       then parseDefinition tokens
       else first Expression <$> parseExpression tokens
   case rest of
-    [] -> pure (stmt, [])
-    token : _ -> Left (SyntaxError token)
+    [Token TEOF _] -> pure (stmt, [])
+    _ -> failAt SyntaxError rest
 
 parseDefinition :: Parser Statement
-parseDefinition (TIdentifier name : TOpenParenthesis : rest) = do
+parseDefinition (Token (TIdentifier name) _ : Token TOpenParenthesis _ : rest) = do
   (params, rest') <- parseParams rest
   case rest' of
-    TEquals : body -> do
+    Token TEquals _ : body -> do
       (expr, rest'') <- parseExpression body
       pure (FunctionDefinition name params expr, rest'')
-    token : _ -> Left (SyntaxError token)
-    [] -> Left UnexpectedEndOfExpression
-parseDefinition (TIdentifier name : TEquals : rest) = do
+    _ -> unexpected rest'
+parseDefinition (Token (TIdentifier name) _ : Token TEquals _ : rest) = do
   (expr, rest') <- parseExpression rest
   pure (ConstantDefinition name expr, rest')
-parseDefinition (token : _) = Left (SyntaxError token)
-parseDefinition [] = Left UnexpectedEndOfExpression
+parseDefinition tokens = unexpected tokens
 
 parseParams :: Parser [String]
 parseParams = go []
   where
     go prevParams tokens =
       case tokens of
-        TIdentifier name : TComma : rest -> do
-          params <- addParam name prevParams
+        nameTok@(Token (TIdentifier name) _) : Token TComma _ : rest -> do
+          params <- addParam nameTok name prevParams
           go params rest
-        TIdentifier name : TCloseParenthesis : rest -> do
-          params <- addParam name prevParams
+        nameTok@(Token (TIdentifier name) _) : Token TCloseParenthesis _ : rest -> do
+          params <- addParam nameTok name prevParams
           pure (params, rest)
-        TIdentifier _ : t : _ -> Left (SyntaxError t)
-        [TIdentifier _] -> Left MissingParenthesis
-        t : _ -> Left (SyntaxError t)
-        [] -> Left MissingParenthesis
+        Token (TIdentifier _) _ : rest -> unexpectedOr MissingParenthesis rest
+        _ -> unexpectedOr MissingParenthesis tokens
 
-    addParam name prevParams
-      | name `elem` prevParams = Left (DuplicateParameter name)
+    addParam tok name prevParams
+      | name `elem` prevParams = failAt (DuplicateParameter name) [tok]
       | otherwise = Right (prevParams ++ [name])
-
 
 parseExpression :: Parser Expr
 parseExpression = chainl1 parseTerm addOp
@@ -126,7 +111,7 @@ parseTerm = chainl1 parseUnary mulOp
 
 parseUnary :: Parser Expr
 parseUnary (t : rest)
-  | Just op <- unaryOp t = do
+  | Just op <- unaryOp (tokenType t) = do
       (expr, rest') <- parseUnary rest
       pure (UnaryOp op expr, rest')
 parseUnary tokens = parsePower tokens
@@ -138,7 +123,7 @@ parsePower tokens = do
   (base, rest) <- parseFactor tokens
   case rest of
     t : ts
-      | Just op <- powOp t -> do
+      | Just op <- powOp (tokenType t) -> do
           (expo, rest') <- parseUnary ts
           pure (op base expo, rest')
     _ -> pure (base, rest)
@@ -146,35 +131,33 @@ parsePower tokens = do
 parseFactor :: Parser Expr
 parseFactor tokens =
   case tokens of
-    TNumber n : rest -> pure (Number n, rest)
-    TIdentifier name : rest -> parseApplication name rest
-    TOpenParenthesis : rest -> parseParenthesized rest
-    token : _ -> Left (SyntaxError token)
-    [] -> Left UnexpectedEndOfExpression
+    Token (TNumber n) _ : rest -> pure (Number n, rest)
+    Token (TIdentifier name) _ : rest -> parseApplication name rest
+    Token TOpenParenthesis _ : rest -> parseParenthesized rest
+    _ -> unexpected tokens
 
 parseApplication :: String -> Parser Expr
 parseApplication f tokens =
   case tokens of
-    TOpenParenthesis : rest -> first (ApplyFunction f) <$> parseParenthesizedFunArgs rest
-    TNumber n : rest -> Right (ApplyFunction f [Number n], rest)
-    TIdentifier i : _ -> Left (SyntaxError (TIdentifier i))
+    Token TOpenParenthesis _ : rest ->
+      first (ApplyFunction f) <$> parseParenthesizedFunArgs rest
+    Token (TNumber n) _ : rest -> Right (ApplyFunction f [Number n], rest)
+    Token (TIdentifier _) _ : _ -> failAt SyntaxError tokens
     _ -> Right (Variable f, tokens)
 
 parseParenthesizedFunArgs :: Parser [Expr]
 parseParenthesizedFunArgs tokens = do
   (expr, rest) <- parseExpression tokens
   case rest of
-    TCloseParenthesis : rest' -> pure ([expr], rest')
-    TComma : rest' -> do
+    Token TCloseParenthesis _ : rest' -> pure ([expr], rest')
+    Token TComma _ : rest' -> do
       (nextExprs, rest'') <- parseParenthesizedFunArgs rest'
       pure (expr : nextExprs, rest'')
-    token : _ -> Left (SyntaxError token)
-    [] -> Left MissingParenthesis
+    _ -> unexpectedOr MissingParenthesis rest
 
 parseParenthesized :: Parser Expr
 parseParenthesized tokens = do
   (expr, rest) <- parseExpression tokens
   case rest of
-    TCloseParenthesis : rest' -> pure (expr, rest')
-    token : _ -> Left (SyntaxError token)
-    [] -> Left MissingParenthesis
+    Token TCloseParenthesis _ : rest' -> pure (expr, rest')
+    _ -> unexpectedOr MissingParenthesis rest
