@@ -1,15 +1,16 @@
 module Main where
 
-import Calc.Evaluator (run)
+import Calc (run)
 import Calc.Error (showError)
 import qualified Data.Map as Map
+import System.IO (hFlush, stdout)
 
 main :: IO ()
-main =
-    loop Map.empty
+main = loop Map.empty
   where
     loop env = do
-      putStrLn "> "
+      putStr "> "
+      hFlush stdout
       input <- getLine
 
       case run env input of
@@ -19,4 +20,3 @@ main =
 
         Left err ->
           putStrLn ("Error: " ++ showError err input)
-

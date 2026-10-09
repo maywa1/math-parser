@@ -5,6 +5,7 @@ version: 0.1.0.0
 library
     hs-source-dirs: src
     exposed-modules:
+        Calc
         Calc.Evaluator
         Calc.Error
         Calc.Token

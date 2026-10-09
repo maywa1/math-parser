@@ -61,7 +61,7 @@ errorMessage (ParseError err _) =
     DuplicateParameter param -> "Duplicate parameter: " ++ param
     SyntaxError -> "Syntax error"
     UnexpectedEndOfExpression -> "Unexpected end of expression!"
-    MissingParenthesis -> "You forgot to close parenthesis somewhere"
+    MissingParenthesis -> "You forgot to close parenthesis here"
 errorMessage (LexError err _) =
   case err of
     InvalidOperator c -> [c] ++ " is not a valid operator!"

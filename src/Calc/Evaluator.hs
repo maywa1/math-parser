@@ -1,4 +1,4 @@
-module Calc.Evaluator(run, Value(..)) where
+module Calc.Evaluator(Value, Env, evalStatement, builtinEnv) where
 
 import Calc.Error (EvaluationError (ExpectedNumber, UndefinedVariable, UndefinedFunction, DivisionByZero, InvalidArgumentCount), Error(..))
 import Calc.Parser(parseStatement)
@@ -119,10 +119,3 @@ evalStatement env statement =
           in Right (VNumber n, env')
         _         -> Left ExpectedNumber
 
-
-run :: Env -> String -> Either Error (Value, Env)
-run env input = do
-  tokens <- tokenize input
-  (statement, _) <- parseStatement tokens
-  let env' = if Map.null env then builtinEnv else env
-  first (`EvaluationError` Nothing) (evalStatement env' statement)
