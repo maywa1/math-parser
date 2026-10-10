@@ -1,4 +1,4 @@
-module Calc.Evaluator(Value, Env, evalStatement, builtinEnv) where
+module Calc.Evaluator(Value (..), Env, evalStatement) where
 
 import Calc.Error (EvaluationError (ExpectedNumber, UndefinedVariable, UndefinedFunction, DivisionByZero, InvalidArgumentCount), Error(..))
 import Calc.Parser(parseStatement)
@@ -22,11 +22,26 @@ instance Show Value where
 builtinEnv :: Env
 builtinEnv =
   Map.fromList
-    [ ("sin", VBuiltinFunction (runFunction (\[x] -> sin x) 1))
-    , ("cos", VBuiltinFunction (runFunction (\[x] -> cos x) 1))
-    , ("tan", VBuiltinFunction (runFunction (\[x] -> tan x) 1))
-    , ("pi" , VNumber pi)
-    , ("e" , VNumber (exp 1))
+    [ ("sin"  , VBuiltinFunction (runFunction (\[x] -> sin x) 1))
+    , ("cos"  , VBuiltinFunction (runFunction (\[x] -> cos x) 1))
+    , ("tan"  , VBuiltinFunction (runFunction (\[x] -> tan x) 1))
+    , ("sqrt" , VBuiltinFunction (runFunction (\[x] -> sqrt x) 1))
+    , ("abs"   , VBuiltinFunction (runFunction (\[x] -> abs x) 1))
+    , ("negate", VBuiltinFunction (runFunction (\[x] -> negate x) 1))
+    , ("floor" , VBuiltinFunction (runFunction (\[x] -> fromIntegral (floor x :: Integer)) 1))
+    , ("ceil"  , VBuiltinFunction (runFunction (\[x] -> fromIntegral (ceiling x :: Integer)) 1))
+    , ("round" , VBuiltinFunction (runFunction (\[x] -> fromIntegral (round x :: Integer)) 1))
+    , ("ln"   , VBuiltinFunction (runFunction (\[x] -> log x) 1))
+    , ("log" , VBuiltinFunction (runFunction (\[x, y] -> logBase x y) 2))
+    , ("exp"   , VBuiltinFunction (runFunction (\[x] -> exp x) 1))
+    , ("asin"  , VBuiltinFunction (runFunction (\[x] -> asin x) 1))
+    , ("acos"  , VBuiltinFunction (runFunction (\[x] -> acos x) 1))
+    , ("atan"  , VBuiltinFunction (runFunction (\[x] -> atan x) 1))
+    , ("sinh"  , VBuiltinFunction (runFunction (\[x] -> sinh x) 1))
+    , ("cosh"  , VBuiltinFunction (runFunction (\[x] -> cosh x) 1))
+    , ("tanh"  , VBuiltinFunction (runFunction (\[x] -> tanh x) 1))
+    , ("pi"   , VNumber pi)
+    , ("e"    , VNumber (exp 1))
     ]
     where
       runFunction :: ([Double] -> Double) -> Int -> [Double] -> Either EvaluationError Double
@@ -100,22 +115,21 @@ eval env (BinOp operator left right) = do
     _ -> Left ExpectedNumber
 
 evalStatement :: Env -> Statement -> Either EvaluationError (Value, Env)
-evalStatement env statement =
+evalStatement userEnv statement =
   case statement of
     Expression expr -> do
-      value <- eval env expr
-      pure (value, env)
+      value <- eval fullEnv expr
+      pure (value, userEnv)
 
     FunctionDefinition name args body ->
       let function = VFunction args body
-          env' = Map.insert name function env
-      in pure (function, env')
+      in pure (function, Map.insert name function userEnv)
 
     ConstantDefinition name body -> do
-      value <- eval env body
+      value <- eval fullEnv body
       case value of
-        VNumber n ->
-          let env' = Map.insert name (VNumber n) env
-          in Right (VNumber n, env')
+        VNumber _ -> Right (value, Map.insert name value userEnv)
         _         -> Left ExpectedNumber
-
+  where
+    -- Left-biased union: user definitions shadow builtins.
+    fullEnv = Map.union userEnv builtinEnv
